@@ -109,3 +109,5 @@ while True:
     drives = ['%s:' % d for d in driveList if os.path.exists('%s:' % d)]
 
     time.sleep(1)
+
+#shit
