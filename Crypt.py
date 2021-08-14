@@ -8,12 +8,12 @@ def difference(list1, list2):
     list_difference = [item for item in list1 if item not in list2]
     return list_difference
 
-def driveConnected():
-    print("New drive connected")
+#def driveConnected():
+#    print("New drive connected")
 
 
-def driveDisconnected():
-    print("Drive disconnected")
+#def driveDisconnected():
+#    print("Drive disconnected")
 
 
 #load key from current directory
@@ -49,11 +49,13 @@ def decryption(filename, key):
             # decrypt data
             decrypted_data = f.decrypt(encrypted_data)
         except:
-            print("Invalid token:\neither the file is not encrypted or some of its content has been modified")
+            return 1
         else:
             # write the original file
             with open(filename, "wb") as file:
                 file.write(decrypted_data)
+    
+    return 0
 
 
 #driver code
@@ -64,7 +66,7 @@ if __name__ == '__main__':
     drives = ['%s:' % d for d in driveList if os.path.exists('%s:' % d)]    #connected drives
     crypt = False
     controller = False       #to avoid encrpting an already encrypted drive
-    print("connected drives:", drives)
+    print("connect a USB drive to start the process")
 
     while True:
 
@@ -74,8 +76,8 @@ if __name__ == '__main__':
 
         #if drive is connected
         if x:
-            print("New drives: " + str(x))
-            driveConnected()
+            print(str(x[0]) + " drive connected")
+#            driveConnected()
             current = datetime.datetime.now()
 
             for i in x:
@@ -85,24 +87,31 @@ if __name__ == '__main__':
                 if crypt == False and controller == False:
 
                     key = load_key()
+                    print("encrypting files...\n")
                     for dirpath, dirnames, files in os.walk(path):
                         for file in files:
                             encryption(dirpath + "\\" + file, key)    #encryption process
-                    print("files encrypted")
+                    print("encryption completed")
                     done = datetime.datetime.now()
-                    print("time consumed: " + str(done - current))
+                    print("time consumed: " + str(done - current) + "\n")
                     crypt = True
 
                 #decrypt files
                 elif crypt == True and controller == True:
 
+                    modified_or_invalid_files = 0
                     key = load_key()
+                    print("decrypting files...\n")
                     for dirpath, dirnames, files in os.walk(path):
                         for file in files:
-                            decryption(dirpath + "\\" + file, key)    #decryption process
-                    print("files decrypted")
+                            modified_or_invalid_files += decryption(dirpath + "\\" + file, key)    #decryption process
+
+                    if modified_or_invalid_files > 0:
+                        print("skipped " + str(modified_or_invalid_files) + " files")
+                        print("files were either invalid for decryption or previously modified")
+                    print("decryption completed")
                     done = datetime.datetime.now()
-                    print("time consumed: " + str(done - current) )
+                    print("time consumed: " + str(done - current) + "\n")
                     crypt = False
 
         x = difference(drives, uncheckedDrives)
@@ -114,11 +123,14 @@ if __name__ == '__main__':
             else:
                 controller = True
 
-            print("Removed drives: " + str(x))
-            driveDisconnected()
+            print(str(x[0]) + " drive removed\n")
+#            driveDisconnected()
 
         drives = ['%s:' % d for d in driveList if os.path.exists('%s:' % d)]
 
-        time.sleep(1)
+        time.sleep(2)
 
-#shit
+# code completed...pheww
+# still need a few more updates TT_TT
+# will solve multiple encryption problem next
+# still don't know how to add it to topics...fml
