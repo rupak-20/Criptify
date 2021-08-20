@@ -78,7 +78,7 @@ if __name__ == '__main__':
         if x:
             print(str(x[0]) + " drive connected")
 #            driveConnected()
-            current = datetime.datetime.now()
+            end = datetime.datetime.now()
 
             for i in x:
                 path = i + "\\"     #path of the drive
@@ -92,8 +92,8 @@ if __name__ == '__main__':
                         for file in files:
                             encryption(dirpath + "\\" + file, key)    #encryption process
                     print("encryption completed")
-                    done = datetime.datetime.now()
-                    print("time consumed: " + str(done - current) + "\n")
+                    start = datetime.datetime.now()
+                    print("time consumed: " + str(start - end) + "\n")
                     crypt = True
 
                 #decrypt files
@@ -110,8 +110,8 @@ if __name__ == '__main__':
                         print("skipped " + str(modified_or_invalid_files) + " files")
                         print("files were either invalid for decryption or previously modified")
                     print("decryption completed")
-                    done = datetime.datetime.now()
-                    print("time consumed: " + str(done - current) + "\n")
+                    start = datetime.datetime.now()
+                    print("time consumed: " + str(start - end) + "\n")
                     crypt = False
 
         x = difference(drives, uncheckedDrives)
@@ -130,7 +130,18 @@ if __name__ == '__main__':
 
         time.sleep(2)
 
-# code completed...pheww
-# still need a few more updates TT_TT
-# will solve multiple encryption problem next
-# still don't know how to add it to topics...fml
+
+#roadmap:
+
+    #solve multiple encryption problem
+    #add manual control
+    #add support for argparser to run application on cli
+    #add password protection
+    #support enctyption of large files
+    #parallelize certain processes using Ray
+    #create a dedicated website
+    #containerize the app using docker
+    #create and distribute executables and docker images
+    #add support for log files
+    #add RSA encryption
+    #(maybe) add GUI
