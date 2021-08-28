@@ -1,7 +1,9 @@
+import ray
 import time
 import os.path
-import datetime
 from cryptography.fernet import Fernet
+
+ray.init()
 
 #find difference between list1 and list2...used here for finding newly connected or disconnected drive
 def difference(list1, list2):
@@ -22,6 +24,7 @@ def load_key():
 
 
 #encryption
+@ray.remote
 def encryption(filename, key):
 
     f = Fernet(key)
@@ -36,9 +39,12 @@ def encryption(filename, key):
         with open(filename, "wb") as file:
             file.write(encrypted_data)
 
+    return filename
+
 
 #decryption
-def decryption(filename, key):
+@ray.remote
+def decryption(filename, key, skipped):
 
     f = Fernet(key)
     with open(filename, "rb") as file:
@@ -49,13 +55,13 @@ def decryption(filename, key):
             # decrypt data
             decrypted_data = f.decrypt(encrypted_data)
         except:
-            return 1
+            skipped.append(filename)
         else:
             # write the original file
             with open(filename, "wb") as file:
                 file.write(decrypted_data)
-    
-    return 0
+
+    return filename
 
 
 #driver code
@@ -67,6 +73,7 @@ if __name__ == '__main__':
     crypt = False
     controller = False       #to avoid encrpting an already encrypted drive
     print("connect a USB drive to start the process")
+    key = load_key()
 
     while True:
 
@@ -76,9 +83,9 @@ if __name__ == '__main__':
 
         #if drive is connected
         if x:
-            print(str(x[0]) + " drive connected")
+            print(x[0], "drive connected")
 #            driveConnected()
-            end = datetime.datetime.now()
+            start = time.time()
 
             for i in x:
                 path = i + "\\"     #path of the drive
@@ -86,32 +93,39 @@ if __name__ == '__main__':
                 #encrypt files
                 if crypt == False and controller == False:
 
-                    key = load_key()
-                    print("encrypting files...\n")
+                    encrypted_files = []
+                    print("encrypting files...")
+
                     for dirpath, dirnames, files in os.walk(path):
                         for file in files:
-                            encryption(dirpath + "\\" + file, key)    #encryption process
+                            encrypted_files.append(encryption.remote(dirpath + "\\" + file, key))    #encryption process
+                    encrypted_files = ray.get(encrypted_files)
+
+                    print("encrypted", len(encrypted_files), "files")
                     print("encryption completed")
-                    start = datetime.datetime.now()
-                    print("time consumed: " + str(start - end) + "\n")
+                    end = time.time()
+                    print("time consumed: ", end - start)
                     crypt = True
 
                 #decrypt files
                 elif crypt == True and controller == True:
 
-                    modified_or_invalid_files = 0
-                    key = load_key()
-                    print("decrypting files...\n")
+                    decrypted_files = []
+                    modified_or_invalid_files = []
+                    print("decrypting files...")
+
                     for dirpath, dirnames, files in os.walk(path):
                         for file in files:
-                            modified_or_invalid_files += decryption(dirpath + "\\" + file, key)    #decryption process
+                            decrypted_files.append(decryption.remote(dirpath + "\\" + file, key, modified_or_invalid_files))    #decryption process
+                    decrypted_files = ray.get(decrypted_files)
 
-                    if modified_or_invalid_files > 0:
-                        print("skipped " + str(modified_or_invalid_files) + " files")
-                        print("files were either invalid for decryption or previously modified")
+                    if len(modified_or_invalid_files) > 0:
+                        print("skipped", len(modified_or_invalid_files), "files")
+                        print("files were either invalid for decryption or modified previously")
+                    print("decrypted", len(decrypted_files), "files")
                     print("decryption completed")
-                    start = datetime.datetime.now()
-                    print("time consumed: " + str(start - end) + "\n")
+                    end = time.time()
+                    print("time consumed: ", end - start)
                     crypt = False
 
         x = difference(drives, uncheckedDrives)
@@ -123,12 +137,12 @@ if __name__ == '__main__':
             else:
                 controller = True
 
-            print(str(x[0]) + " drive removed\n")
+            print(str(x[0]) + " drive removed")
 #            driveDisconnected()
 
         drives = ['%s:' % d for d in driveList if os.path.exists('%s:' % d)]
 
-        time.sleep(2)
+        time.sleep(1)
 
 
 #roadmap:
@@ -138,7 +152,6 @@ if __name__ == '__main__':
     #add support for argparser to run application on cli
     #add password protection
     #support enctyption of large files
-    #parallelize certain processes using Ray
     #create a dedicated website
     #containerize the app using docker
     #create and distribute executables and docker images
