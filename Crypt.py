@@ -1,5 +1,6 @@
 import ray
 import time
+import datetime
 import os.path
 from cryptography.fernet import Fernet
 
@@ -13,7 +14,6 @@ def difference(list1, list2):
 #def driveConnected():
 #    print("New drive connected")
 
-
 #def driveDisconnected():
 #    print("Drive disconnected")
 
@@ -25,43 +25,74 @@ def load_key():
 
 #encryption
 @ray.remote
-def encryption(filename, key):
+def encryption(path, key):
 
+    number_of_files = 0
+    progress = 0
     f = Fernet(key)
-    with open(filename, "rb") as file:
-        # read all file data
-        file_data = file.read()
+    print("encrypting files...")
 
-        # encrypt data
-        encrypted_data = f.encrypt(file_data)
+    for dirpath, dirnames, files in os.walk(path):
+        for file in files:
+            
+            number_of_files = len(files)
+            file_location = dirpath + "\\" + file
+            with open(file_location, "rb") as data:
 
-        # write the encrypted file
-        with open(filename, "wb") as file:
-            file.write(encrypted_data)
+                file_data = data.read() # read all file data
+                encrypted_data = f.encrypt(file_data)   # encrypt data
 
-    return filename
+                # write the encrypted file
+                with open(file_location, "wb") as data:
+                    data.write(encrypted_data)
+            
+            progress += 1//number_of_files*100
+            print(int(progress), '% completed', end = '\r')
+
+
+    print("\nencrypted", number_of_files, "files. Encryption completed in ", end='')
+
+    return (datetime.datetime.now(), str(number_of_files) + " encrypted", "0 skipped")
 
 
 #decryption
 @ray.remote
-def decryption(filename, key, skipped):
+def decryption(path, key):
 
+    number_of_files = 0
+    skipped = []
+    progress = 0
     f = Fernet(key)
-    with open(filename, "rb") as file:
-        # read the encrypted data
-        encrypted_data = file.read()
+    print("decrypting files...")
 
-        try:
-            # decrypt data
-            decrypted_data = f.decrypt(encrypted_data)
-        except:
-            skipped.append(filename)
-        else:
-            # write the original file
-            with open(filename, "wb") as file:
-                file.write(decrypted_data)
 
-    return filename
+    for dirpath, dirnames, files in os.walk(path):
+        for file in files:
+            
+            number_of_files = len(files)
+            file_location = dirpath + "\\" + file
+            with open(file_location, "rb") as data:
+                
+                encrypted_data = data.read()    # read the encrypted data
+                try:
+                    decrypted_data = f.decrypt(encrypted_data)  # decrypt data
+                except:
+                    skipped.append(file_location)
+                    progress += 1//number_of_files*100
+                else:
+                    # write the original file
+                    with open(file_location, "wb") as data:
+                        data.write(decrypted_data)
+            
+            progress += 1//number_of_files*100
+            print(int(progress), '% completed', end = '\r')
+
+    print("\ndecrypted", number_of_files, "files")
+    if(len(skipped) > 0):
+        print("skipped", len(skipped), "files. Files were either invalid of modified previously")
+    print("Decryption completed in ", end='')
+
+    return (datetime.datetime.now(), str(number_of_files) + " decrypted", str(len(skipped)) + " skipped")
 
 
 #driver code
@@ -93,39 +124,22 @@ if __name__ == '__main__':
                 #encrypt files
                 if crypt == False and controller == False:
 
-                    encrypted_files = []
-                    print("encrypting files...")
-
-                    for dirpath, dirnames, files in os.walk(path):
-                        for file in files:
-                            encrypted_files.append(encryption.remote(dirpath + "\\" + file, key))    #encryption process
-                    encrypted_files = ray.get(encrypted_files)
-
-                    print("encrypted", len(encrypted_files), "files")
-                    print("encryption completed")
-                    end = time.time()
-                    print("time consumed: ", end - start)
+                    log = encryption.remote(path, key)    #encryption process
+                    log = ray.get(log)
+                    
+                    finish = time.time()
+                    print(finish - start, "seconds")
                     crypt = True
+
 
                 #decrypt files
                 elif crypt == True and controller == True:
 
-                    decrypted_files = []
-                    modified_or_invalid_files = []
-                    print("decrypting files...")
+                    log = decryption.remote(path, key)    #decryption process
+                    log = ray.get(log)
 
-                    for dirpath, dirnames, files in os.walk(path):
-                        for file in files:
-                            decrypted_files.append(decryption.remote(dirpath + "\\" + file, key, modified_or_invalid_files))    #decryption process
-                    decrypted_files = ray.get(decrypted_files)
-
-                    if len(modified_or_invalid_files) > 0:
-                        print("skipped", len(modified_or_invalid_files), "files")
-                        print("files were either invalid for decryption or modified previously")
-                    print("decrypted", len(decrypted_files), "files")
-                    print("decryption completed")
-                    end = time.time()
-                    print("time consumed: ", end - start)
+                    finish = time.time()
+                    print(finish - start, "seconds")
                     crypt = False
 
         x = difference(drives, uncheckedDrives)
@@ -151,7 +165,7 @@ if __name__ == '__main__':
     #add manual control
     #add support for argparser to run application on cli
     #add password protection
-    #support enctyption of large files
+    #support encryption of large files
     #create a dedicated website
     #containerize the app using docker
     #create and distribute executables and docker images
