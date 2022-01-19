@@ -20,3 +20,6 @@ After you run the application, inserting a USB drive will start encryption autom
 
 ## WARNING
 Criptify is still a work in progress. There might be a chance of permanent encryption of data. Test the application on junk files before encrypting any sensitive information. Proceed with caution.
+
+## Conclusion
+In this project we developed an encryption and decryption application using Ray and cryptography library in python by employing AES. We found that after combining with Ray, the turnaround time of Criptify was reduced by almost 50%-75% on i5 7200U dual core processor. Using better processor would definitely decrease the turnaround time even further. In future work, we will add support for manual control, argument parsing, passwords, log files and using other encryption algorithms such as RSA, DESI, Blowfish, etc. 
